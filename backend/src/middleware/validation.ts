@@ -22,16 +22,32 @@ export const validateBody = (schema: z.ZodSchema) => {
           errors: error.errors,
         });
 
-        const validationError = new ValidationError('Request body validation failed');
-        (validationError as any).details = error.errors.map(err => ({
+        const details = error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,
         }));
 
-        next(validationError);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Request validation failed',
+            details,
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       } else {
-        next(error);
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Internal validation error',
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       }
     }
   };
@@ -57,16 +73,32 @@ export const validateQuery = (schema: z.ZodSchema) => {
           errors: error.errors,
         });
 
-        const validationError = new ValidationError('Query parameter validation failed');
-        (validationError as any).details = error.errors.map(err => ({
+        const details = error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,
         }));
 
-        next(validationError);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Query validation failed',
+            details,
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       } else {
-        next(error);
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Internal server error',
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       }
     }
   };
@@ -92,16 +124,32 @@ export const validateParams = (schema: z.ZodSchema) => {
           errors: error.errors,
         });
 
-        const validationError = new ValidationError('Path parameter validation failed');
-        (validationError as any).details = error.errors.map(err => ({
+        const details = error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message,
           code: err.code,
         }));
 
-        next(validationError);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Parameter validation failed',
+            details,
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       } else {
-        next(error);
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Internal server error',
+          },
+          timestamp: new Date().toISOString(),
+          path: req.originalUrl,
+        });
       }
     }
   };

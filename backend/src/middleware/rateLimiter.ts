@@ -7,7 +7,7 @@ import CacheService from '../services/CacheService';
  * Custom rate limit store using Cache service (Redis with memory fallback)
  */
 class CacheStore {
-  private prefix = 'rate_limit:';
+  public prefix = 'rate_limit:';
 
   async increment(key: string): Promise<{ totalHits: number; resetTime: Date }> {
     try {
@@ -37,7 +37,7 @@ class CacheStore {
         resetTime: new Date(resetTime),
       };
     } catch (error) {
-      console.warn('⚠️  Cache rate limit store error (allowing request):', error.message);
+      console.warn('⚠️  Cache rate limit store error (allowing request):', error instanceof Error ? error.message : String(error));
       // Graceful degradation: allow the request
       return { totalHits: 1, resetTime: new Date(Date.now() + 15 * 60 * 1000) };
     }
@@ -59,7 +59,7 @@ class CacheStore {
         }
       }
     } catch (error) {
-      console.warn('⚠️  Cache rate limit decrement error:', error.message);
+      console.warn('⚠️  Cache rate limit decrement error:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -67,7 +67,7 @@ class CacheStore {
     try {
       await CacheService.del(`${this.prefix}${key}`);
     } catch (error) {
-      console.warn('⚠️  Cache rate limit reset error:', error.message);
+      console.warn('⚠️  Cache rate limit reset error:', error instanceof Error ? error.message : String(error));
     }
   }
 }

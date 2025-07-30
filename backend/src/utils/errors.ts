@@ -64,6 +64,12 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class RouteNotFoundError extends AppError {
+  constructor(route: string) {
+    super(`Route ${route} not found`, 404, 'ROUTE_NOT_FOUND');
+  }
+}
+
 /**
  * Conflict error (409)
  */

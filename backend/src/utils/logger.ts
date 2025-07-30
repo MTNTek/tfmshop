@@ -5,6 +5,19 @@ import { config } from '../config/env';
 import path from 'path';
 
 /**
+ * Log levels enum
+ */
+export enum LogLevel {
+  ERROR = 'error',
+  WARN = 'warn',
+  INFO = 'info',
+  HTTP = 'http',
+  DEBUG = 'debug'
+}
+
+
+
+/**
  * Custom log format
  */
 const logFormat = winston.format.combine(
@@ -151,15 +164,7 @@ const createTransports = (): winston.transport[] => {
   return transports;
 };
 
-/**
- * Main logger instance
- */
-export const logger = winston.createLogger({
-  level: config.logging.level,
-  format: logFormat,
-  transports: createTransports(),
-  exitOnError: false,
-});
+
 
 /**
  * Performance logger for tracking slow operations
@@ -397,5 +402,67 @@ if (config.nodeEnv === 'production') {
     });
   });
 }
+
+/**
+ * Main winston logger instance
+ */
+const winstonLogger = winston.createLogger({
+  level: config.logging.level,
+  format: logFormat,
+  transports: createTransports(),
+  exitOnError: false,
+});
+
+/**
+ * Logger class wrapper around winston
+ */
+export class Logger {
+  private static instance: Logger;
+
+  private constructor() {}
+
+  static getInstance(): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger();
+    }
+    return Logger.instance;
+  }
+
+  // Delegate winston methods
+  error(message: any, ...meta: any[]) {
+    return winstonLogger.error(message, ...meta);
+  }
+
+  warn(message: any, ...meta: any[]) {
+    return winstonLogger.warn(message, ...meta);
+  }
+
+  info(message: any, ...meta: any[]) {
+    return winstonLogger.info(message, ...meta);
+  }
+
+  debug(message: any, ...meta: any[]) {
+    return winstonLogger.debug(message, ...meta);
+  }
+
+  http(message: any, ...meta: any[]) {
+    return winstonLogger.http(message, ...meta);
+  }
+
+  // Custom methods
+  security(message: string, meta?: any) {
+    logSecurityEvent(message, meta || {});
+  }
+
+  auth(message: string, userId?: string, meta?: any) {
+    winstonLogger.info(message, { userId, ...meta });
+  }
+
+  database(message: string, operation?: string, meta?: any) {
+    winstonLogger.debug(message, { operation, ...meta });
+  }
+}
+
+export const logger = Logger.getInstance();
 
 export default logger;

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { AppError, ErrorFactory, isAppError, isOperationalError, NotFoundError } from '../utils/errors';
+import { AppError, ErrorFactory, isAppError, isOperationalError, NotFoundError, RouteNotFoundError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 
@@ -97,7 +97,7 @@ export const asyncHandler = (fn: Function) => {
  * 404 Not Found handler
  */
 export const notFoundHandler = (req: Request, res: Response, next: NextFunction): void => {
-  const error = new NotFoundError(`Route ${req.originalUrl}`);
+  const error = new RouteNotFoundError(req.originalUrl);
 
   next(error);
 };

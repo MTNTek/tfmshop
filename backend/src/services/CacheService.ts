@@ -321,6 +321,17 @@ class CacheService {
   }
 
   /**
+   * Get or set value in cache (alias for cached method)
+   */
+  async getOrSet<T>(
+    key: string,
+    fetchFunction: () => Promise<T>,
+    ttlSeconds: number = 300
+  ): Promise<T> {
+    return this.cached(key, fetchFunction, ttlSeconds);
+  }
+
+  /**
    * Batch get multiple keys
    */
   async mget<T>(keys: string[]): Promise<(T | null)[]> {
