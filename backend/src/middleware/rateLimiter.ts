@@ -124,12 +124,7 @@ export const generalRateLimit = rateLimit({
   legacyHeaders: false,
   skip: skipRateLimit,
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    // Use IP address and user ID if available
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userId = (req as any).user?.id;
-    return userId ? `${ip}:${userId}` : ip;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
 
 /**
@@ -143,10 +138,7 @@ export const authRateLimit = rateLimit({
   legacyHeaders: false,
   skip: (req: Request) => config.nodeEnv === 'test',
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    return `auth:${ip}`;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
 
 /**
@@ -160,11 +152,7 @@ export const apiRateLimit = rateLimit({
   legacyHeaders: false,
   skip: skipRateLimit,
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userId = (req as any).user?.id;
-    return userId ? `api:${ip}:${userId}` : `api:${ip}`;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
 
 /**
@@ -178,11 +166,7 @@ export const uploadRateLimit = rateLimit({
   legacyHeaders: false,
   skip: (req: Request) => config.nodeEnv === 'test',
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userId = (req as any).user?.id;
-    return userId ? `upload:${ip}:${userId}` : `upload:${ip}`;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
 
 /**
@@ -196,11 +180,7 @@ export const searchRateLimit = rateLimit({
   legacyHeaders: false,
   skip: skipRateLimit,
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userId = (req as any).user?.id;
-    return userId ? `search:${ip}:${userId}` : `search:${ip}`;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
 
 /**
@@ -214,9 +194,5 @@ export const adminRateLimit = rateLimit({
   legacyHeaders: false,
   skip: (req: Request) => config.nodeEnv === 'test',
   store: config.performance.enableCaching ? new CacheStore() : undefined,
-  keyGenerator: (req: Request) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
-    const userId = (req as any).user?.id || 'anonymous';
-    return `admin:${ip}:${userId}`;
-  },
+  // Remove custom keyGenerator to use default IPv6-compatible one
 });
