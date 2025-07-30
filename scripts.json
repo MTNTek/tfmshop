@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push:pg"
+  }
+}
