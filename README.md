@@ -1,8 +1,15 @@
-# 🛒 TFMShop - E-commerce Backend API
+# 🛒 TFMShop - Modern E-commerce Platform
 
-A production-ready, enterprise-grade e-commerce backend built with Node.js, TypeScript, Express, and PostgreSQL. Features comprehensive performance optimizations, security measures, and monitoring capabilities.
+A full-stack, production-ready e-commerce platform built with Next.js, TypeScript, and a powerful Node.js backend. Features modern UI/UX, comprehensive performance optimizations, security measures, and monitoring capabilities.
 
 ## 🚀 Features
+
+### 🎨 **Modern Frontend (Next.js)**
+- **Responsive Design** - Mobile-first, modern UI with Tailwind CSS
+- **Server-Side Rendering** - Fast loading and SEO optimization
+- **Interactive Components** - Built with Radix UI and shadcn/ui
+- **Real-time Updates** - Dynamic cart, wishlist, and user interactions
+- **Dark/Light Mode** - Theme switching with system preference support
 
 ### 🏗️ **Core E-commerce Functionality**
 - **User Management** - Registration, authentication, profile management
@@ -34,6 +41,16 @@ A production-ready, enterprise-grade e-commerce backend built with Node.js, Type
 
 ## 🛠️ **Tech Stack**
 
+### Frontend
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: Radix UI + shadcn/ui
+- **State Management**: Zustand
+- **HTTP Client**: Axios
+- **Forms**: React Hook Form + Zod
+
+### Backend
 - **Runtime**: Node.js 18+
 - **Language**: TypeScript
 - **Framework**: Express.js
@@ -55,24 +72,35 @@ A production-ready, enterprise-grade e-commerce backend built with Node.js, Type
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/tfmshop-backend.git
-   cd tfmshop-backend
+   git clone https://github.com/MTNTek/tfmshop.git
+   cd tfmshop
    ```
 
 2. **Install dependencies**
    ```bash
+   # Install frontend dependencies
+   npm install
+   
+   # Install backend dependencies
    cd backend
    npm install
+   cd ..
    ```
 
 3. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   # Frontend environment
+   cp .env.local.example .env.local
+   
+   # Backend environment
+   cp backend/.env.example backend/.env
+   # Edit both files with your configuration
    ```
 
 4. **Set up the database**
    ```bash
+   cd backend
+   
    # Create database
    createdb tfmshop
    
@@ -81,14 +109,23 @@ A production-ready, enterprise-grade e-commerce backend built with Node.js, Type
    
    # Seed with sample data
    npm run seed
+   
+   cd ..
    ```
 
-5. **Start the development server**
+5. **Start the development servers**
    ```bash
-   npm run dev
+   # Start both frontend and backend
+   npm run dev:full
+   
+   # Or start them separately:
+   # Backend: npm run backend:dev
+   # Frontend: npm run dev
    ```
 
-The API will be available at `http://localhost:3000`
+The application will be available at:
+- **Frontend**: `http://localhost:3001`
+- **Backend API**: `http://localhost:3000`
 
 ## 🚀 **Production Deployment**
 
