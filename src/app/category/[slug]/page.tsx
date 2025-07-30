@@ -190,7 +190,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <div className="mb-4 text-6xl">📦</div>
               <h3 className="mb-2 text-xl font-semibold">No products yet</h3>
               <p className="text-gray-600">
-                We're working on adding products to this category. Check back soon!
+                We&apos;re working on adding products to this category. Check back soon!
               </p>
             </div>
           </div>

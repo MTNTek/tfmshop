@@ -98,7 +98,7 @@ export default function HomePage() {
             <p className="mb-8 text-xl opacity-90 md:text-2xl">
               Discover millions of products with fast, free delivery
             </p>
-            <Button variant="amazon" size="xl" className="px-12">
+            <Button variant="amazon" size="lg" className="px-12">
               Shop Now
             </Button>
           </div>
@@ -140,7 +140,7 @@ export default function HomePage() {
       <section className="bg-white py-12">
         <div className="mx-auto max-w-7xl px-4">
           <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Today's Deals</h2>
+            <h2 className="text-2xl font-bold">Today&apos;s Deals</h2>
             <Link href="/deals" className="text-amazon-orange hover:underline">
               See all deals
             </Link>

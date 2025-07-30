@@ -83,7 +83,7 @@ export function Footer() {
                   <span>💵 USD - U.S. Dollar</span>
                 </button>
                 <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-amazon-navy-light">
-                  <img src="/flags/us.svg" alt="US" className="h-4 w-6" />
+                  <span>🇺🇸</span>
                   <span>United States</span>
                 </button>
               </div>

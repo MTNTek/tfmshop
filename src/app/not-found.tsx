@@ -15,7 +15,7 @@ export default function NotFound() {
         </h1>
         
         <p className="mb-8 text-lg text-gray-600">
-          Sorry, we couldn't find the page you're looking for. 
+          Sorry, we couldn&apos;t find the page you&apos;re looking for. 
           The product may have been moved or is no longer available.
         </p>
         

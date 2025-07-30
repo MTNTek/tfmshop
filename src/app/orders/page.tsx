@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Package, Eye, RotateCcw, MessageSquare } from 'lucide-react'
+import { Eye, RotateCcw, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
 

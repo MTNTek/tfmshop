@@ -94,7 +94,7 @@ function SearchResults({ query, category }: { query?: string; category?: string 
         <div className="py-16 text-center">
           <h2 className="text-xl font-semibold text-gray-900">No results found</h2>
           <p className="mt-2 text-gray-600">
-            Try adjusting your search or filters to find what you're looking for.
+            Try adjusting your search or filters to find what you&apos;re looking for.
           </p>
         </div>
       ) : (

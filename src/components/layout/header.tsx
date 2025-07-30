@@ -60,7 +60,7 @@ export function Header() {
             <div className="flex items-center space-x-4">
               {/* Language/Country */}
               <div className="hidden items-center space-x-1 text-sm lg:flex">
-                <img src="/flags/us.svg" alt="US" className="h-4 w-6" />
+                <span>🇺🇸</span>
                 <span>EN</span>
               </div>
 
@@ -117,7 +117,7 @@ export function Header() {
               Books
             </Link>
             <Link href="/deals" className="hover:text-gray-300">
-              Today's Deals
+              Today&apos;s Deals
             </Link>
             <Link href="/gift-cards" className="hover:text-gray-300">
               Gift Cards
