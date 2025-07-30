@@ -1,0 +1,2 @@
+# This directory will contain TypeORM subscribers
+# Subscribers listen to entity events and can perform actions accordingly
