@@ -76,6 +76,12 @@ export function Header() {
                 <span className="font-semibold">& Orders</span>
               </Link>
 
+              {/* Wishlist */}
+              <Link href="/wishlist" className="hidden flex-col text-xs hover:text-gray-300 lg:flex">
+                <span>Your</span>
+                <span className="font-semibold">Wishlist</span>
+              </Link>
+
               {/* Cart */}
               <Link href="/cart" className="flex items-center space-x-1 hover:text-gray-300">
                 <div className="relative">

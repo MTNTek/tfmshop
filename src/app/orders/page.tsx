@@ -9,10 +9,10 @@ const orders = [
   {
     id: 'order-001',
     orderNumber: '123-4567890-1234567',
-    orderDate: '2023-12-15',
+    orderDate: '2025-07-28',
     total: 1149.00,
     status: 'Delivered',
-    deliveryDate: '2023-12-17',
+    deliveryDate: '2025-07-30',
     items: [
       {
         id: '1',
@@ -35,10 +35,10 @@ const orders = [
   {
     id: 'order-002',
     orderNumber: '123-7890123-4567890',
-    orderDate: '2023-12-10',
+    orderDate: '2025-07-25',
     total: 150.00,
     status: 'Shipped',
-    estimatedDelivery: '2023-12-20',
+    estimatedDelivery: '2025-08-01',
     trackingNumber: 'TFM123456789',
     items: [
       {
@@ -54,7 +54,7 @@ const orders = [
   {
     id: 'order-003',
     orderNumber: '123-1234567-8901234',
-    orderDate: '2023-12-05',
+    orderDate: '2025-07-29',
     total: 299.99,
     status: 'Processing',
     items: [
