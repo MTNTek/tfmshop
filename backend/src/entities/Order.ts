@@ -3,9 +3,6 @@ import { BaseEntity } from './BaseEntity';
 import { User } from './User';
 import { OrderItem } from './OrderItem';
 
-/**
- * Order status enumeration
- */
 export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
@@ -13,52 +10,59 @@ export enum OrderStatus {
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
-  REFUNDED = 'refunded',
+  REFUNDED = 'refunded'
 }
 
-/**
- * Order entity representing customer orders
- */
+export enum PaymentStatus {
+  PENDING = 'pending',
+  AUTHORIZED = 'authorized',
+  CAPTURED = 'captured',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
+  PARTIALLY_REFUNDED = 'partially_refunded'
+}
+
 @Entity('orders')
 export class Order extends BaseEntity {
-  // Unique order number for customer reference
   @Column({
     type: 'varchar',
-    length: 50,
-    unique: true,
+    length: 20,
+    unique: true
   })
   orderNumber: string;
 
-  // User relationship
-  @Column({
-    type: 'uuid',
-  })
-  userId: string;
-
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  // Order items relationship
-  @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {
-    cascade: true,
-    eager: true,
+  @Column({ name: 'user_id' })
+  userId: string;
+
+  @OneToMany(() => OrderItem, orderItem => orderItem.order, { 
+    cascade: true, 
+    eager: true 
   })
   items: OrderItem[];
 
-  // Order status
   @Column({
     type: 'enum',
     enum: OrderStatus,
-    default: OrderStatus.PENDING,
+    default: OrderStatus.PENDING
   })
   status: OrderStatus;
 
-  // Pricing information
+  @Column({
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING
+  })
+  paymentStatus: PaymentStatus;
+
+  // Pricing
   @Column({
     type: 'decimal',
     precision: 10,
-    scale: 2,
+    scale: 2
   })
   subtotal: number;
 
@@ -66,147 +70,220 @@ export class Order extends BaseEntity {
     type: 'decimal',
     precision: 10,
     scale: 2,
-    default: 0,
+    default: 0
   })
-  tax: number;
+  taxAmount: number;
 
   @Column({
     type: 'decimal',
     precision: 10,
     scale: 2,
-    default: 0,
+    default: 0
   })
-  shipping: number;
+  shippingAmount: number;
 
   @Column({
     type: 'decimal',
     precision: 10,
     scale: 2,
+    default: 0
   })
-  total: number;
+  discountAmount: number;
 
-  // Address information stored as JSON
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2
+  })
+  totalAmount: number;
+
+  @Column({
+    type: 'varchar',
+    length: 3,
+    default: 'USD'
+  })
+  currency: string;
+
+  // Shipping Information
   @Column({
     type: 'jsonb',
+    nullable: true
   })
   shippingAddress: {
-    firstName: string;
-    lastName: string;
-    company?: string;
+    fullName: string;
     addressLine1: string;
     addressLine2?: string;
     city: string;
     state: string;
     postalCode: string;
     country: string;
-    phone?: string;
+    phoneNumber?: string;
   };
 
   @Column({
     type: 'jsonb',
+    nullable: true
   })
   billingAddress: {
-    firstName: string;
-    lastName: string;
-    company?: string;
+    fullName: string;
     addressLine1: string;
     addressLine2?: string;
     city: string;
     state: string;
     postalCode: string;
     country: string;
-    phone?: string;
+    phoneNumber?: string;
   };
 
-  // Payment information (basic for now)
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true
+  })
+  shippingMethod: string;
+
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true
+  })
+  trackingNumber: string;
+
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true
+  })
+  carrier: string;
+
+  // Payment Information
   @Column({
     type: 'varchar',
     length: 50,
-    nullable: true,
+    nullable: true
   })
-  paymentMethod?: string;
+  paymentMethod: string;
 
   @Column({
     type: 'varchar',
     length: 100,
-    nullable: true,
+    nullable: true
   })
-  paymentReference?: string;
+  paymentTransactionId: string;
 
-  // Tracking information
+  // Timestamps
   @Column({
-    type: 'varchar',
-    length: 100,
-    nullable: true,
+    type: 'timestamp',
+    nullable: true
   })
-  trackingNumber?: string;
+  confirmedAt: Date;
 
   @Column({
     type: 'timestamp',
-    nullable: true,
+    nullable: true
   })
-  shippedAt?: Date;
+  shippedAt: Date;
 
   @Column({
     type: 'timestamp',
-    nullable: true,
+    nullable: true
   })
-  deliveredAt?: Date;
-
-  // Notes and special instructions
-  @Column({
-    type: 'text',
-    nullable: true,
-  })
-  notes?: string;
+  deliveredAt: Date;
 
   @Column({
-    type: 'text',
-    nullable: true,
+    type: 'timestamp',
+    nullable: true
   })
-  customerNotes?: string;
+  cancelledAt: Date;
 
-  /**
-   * Calculate total number of items in order
-   */
-  get totalItems(): number {
+  // Notes and metadata
+  @Column({
+    type: 'text',
+    nullable: true
+  })
+  customerNotes: string;
+
+  @Column({
+    type: 'text',
+    nullable: true
+  })
+  adminNotes: string;
+
+  @Column({
+    type: 'jsonb',
+    nullable: true
+  })
+  metadata: Record<string, any>;
+
+  // Calculated properties
+  get itemCount(): number {
     return this.items?.reduce((total, item) => total + item.quantity, 0) || 0;
   }
 
-  /**
-   * Check if order can be cancelled
-   */
-  get canBeCancelled(): boolean {
+  get isEditable(): boolean {
+    return this.status === OrderStatus.PENDING;
+  }
+
+  get isCancellable(): boolean {
     return [OrderStatus.PENDING, OrderStatus.CONFIRMED].includes(this.status);
   }
 
-  /**
-   * Check if order is completed
-   */
-  get isCompleted(): boolean {
-    return [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REFUNDED].includes(this.status);
+  get isRefundable(): boolean {
+    return [OrderStatus.DELIVERED].includes(this.status) && 
+           this.paymentStatus === PaymentStatus.CAPTURED;
   }
 
-  /**
-   * Get order status display name
-   */
-  get statusDisplay(): string {
-    const statusMap = {
-      [OrderStatus.PENDING]: 'Pending',
-      [OrderStatus.CONFIRMED]: 'Confirmed',
-      [OrderStatus.PROCESSING]: 'Processing',
-      [OrderStatus.SHIPPED]: 'Shipped',
-      [OrderStatus.DELIVERED]: 'Delivered',
-      [OrderStatus.CANCELLED]: 'Cancelled',
-      [OrderStatus.REFUNDED]: 'Refunded',
+  // Helper methods
+  canTransitionTo(newStatus: OrderStatus): boolean {
+    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
+      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
+      [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+      [OrderStatus.DELIVERED]: [OrderStatus.REFUNDED],
+      [OrderStatus.CANCELLED]: [],
+      [OrderStatus.REFUNDED]: []
     };
-    return statusMap[this.status] || this.status;
+
+    return validTransitions[this.status]?.includes(newStatus) || false;
   }
 
-  /**
-   * Get formatted order number for display
-   */
-  get formattedOrderNumber(): string {
-    return `#${this.orderNumber}`;
+  updateStatus(newStatus: OrderStatus): void {
+    if (!this.canTransitionTo(newStatus)) {
+      throw new Error(`Cannot transition from ${this.status} to ${newStatus}`);
+    }
+
+    this.status = newStatus;
+
+    // Update timestamps based on status
+    const now = new Date();
+    switch (newStatus) {
+      case OrderStatus.CONFIRMED:
+        this.confirmedAt = now;
+        break;
+      case OrderStatus.SHIPPED:
+        this.shippedAt = now;
+        break;
+      case OrderStatus.DELIVERED:
+        this.deliveredAt = now;
+        break;
+      case OrderStatus.CANCELLED:
+        this.cancelledAt = now;
+        break;
+    }
+  }
+
+  calculateTotals(): void {
+    if (!this.items) return;
+
+    this.subtotal = this.items.reduce((sum, item) => {
+      return sum + (item.quantity * item.unitPrice);
+    }, 0);
+
+    // Tax calculation (8% example - should be configurable)
+    this.taxAmount = this.subtotal * 0.08;
+
+    // Calculate final total
+    this.totalAmount = this.subtotal + this.taxAmount + this.shippingAmount - this.discountAmount;
   }
 }

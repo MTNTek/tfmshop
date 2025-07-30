@@ -1,18 +1,55 @@
 import { Response } from 'express';
-import { OrderService, CheckoutData, OrderHistoryOptions } from '../services/OrderService';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { OrderStatus } from '../entities/Order';
-import {
-  CheckoutRequest,
-  OrderResponse,
-  OrderHistoryResponse,
-  OrderStatusUpdateRequest,
-  OrderStatisticsResponse,
-} from '../types/order';
+import { OrderService, CreateOrderData, OrderFilters, OrderUpdateData } from '../services/OrderService';
+import { OrderStatus, PaymentStatus } from '../entities';
+import { z } from 'zod';
 
-/**
- * Order controller handling order operations
- */
+// Validation schemas
+const createOrderSchema = z.object({
+  shippingAddress: z.object({
+    fullName: z.string().min(1, 'Full name is required'),
+    addressLine1: z.string().min(1, 'Address line 1 is required'),
+    addressLine2: z.string().optional(),
+    city: z.string().min(1, 'City is required'),
+    state: z.string().min(1, 'State is required'),
+    postalCode: z.string().min(1, 'Postal code is required'),
+    country: z.string().min(1, 'Country is required'),
+    phoneNumber: z.string().optional()
+  }),
+  billingAddress: z.object({
+    fullName: z.string().min(1, 'Full name is required'),
+    addressLine1: z.string().min(1, 'Address line 1 is required'),
+    addressLine2: z.string().optional(),
+    city: z.string().min(1, 'City is required'),
+    state: z.string().min(1, 'State is required'),
+    postalCode: z.string().min(1, 'Postal code is required'),
+    country: z.string().min(1, 'Country is required'),
+    phoneNumber: z.string().optional()
+  }).optional(),
+  shippingMethod: z.string().optional(),
+  paymentMethod: z.string().min(1, 'Payment method is required'),
+  customerNotes: z.string().optional()
+});
+
+const updateOrderSchema = z.object({
+  status: z.nativeEnum(OrderStatus).optional(),
+  paymentStatus: z.nativeEnum(PaymentStatus).optional(),
+  trackingNumber: z.string().optional(),
+  carrier: z.string().optional(),
+  adminNotes: z.string().optional(),
+  shippingMethod: z.string().optional()
+});
+
+const processPaymentSchema = z.object({
+  transactionId: z.string().min(1, 'Transaction ID is required'),
+  amount: z.number().positive('Amount must be positive'),
+  status: z.nativeEnum(PaymentStatus)
+});
+
+const fulfillItemSchema = z.object({
+  quantity: z.number().int().positive('Quantity must be positive')
+});
+
 export class OrderController {
   private orderService: OrderService;
 
@@ -21,406 +58,400 @@ export class OrderController {
   }
 
   /**
-   * Create order from cart (checkout)
-   * POST /api/orders
+   * Create order from cart
    */
-  checkout = async (req: AuthenticatedRequest, res: Response) => {
+  createOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const validation = createOrderSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid request data',
+          details: validation.error.errors
+        });
+        return;
+      }
+
       const userId = req.user!.id;
-      const checkoutData: CheckoutData = req.body;
-
-      const order = await this.orderService.createOrder(userId, checkoutData);
-
-      const response: OrderResponse = {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        userId: order.userId,
-        status: order.status,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productTitle: item.productTitle,
-          productImage: item.productImage,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-          totalPrice: item.totalPrice,
-        })),
-        subtotal: order.subtotal,
-        tax: order.tax,
-        shipping: order.shipping,
-        total: order.total,
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        paymentMethod: order.paymentMethod,
-        trackingNumber: order.trackingNumber,
-        customerNotes: order.customerNotes,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString(),
+      const orderData: CreateOrderData = {
+        userId,
+        ...validation.data
       };
+
+      const order = await this.orderService.createOrderFromCart(userId, orderData);
 
       res.status(201).json({
         success: true,
-        data: response,
         message: 'Order created successfully',
-        timestamp: new Date().toISOString(),
+        data: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status,
+          totalAmount: order.totalAmount,
+          currency: order.currency
+        }
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create order';
+      console.error('Error creating order:', error);
+      const message = error instanceof Error ? error.message : 'Failed to create order';
       
-      let statusCode = 500;
-      let errorCode = 'ORDER_CREATION_ERROR';
-
-      if (errorMessage.includes('Cart is empty')) {
-        statusCode = 400;
-        errorCode = 'EMPTY_CART';
-      } else if (errorMessage.includes('address not found')) {
-        statusCode = 404;
-        errorCode = 'ADDRESS_NOT_FOUND';
-      } else if (errorMessage.includes('address') && errorMessage.includes('required')) {
-        statusCode = 400;
-        errorCode = 'MISSING_ADDRESS';
-      } else if (errorMessage.includes('validation failed')) {
-        statusCode = 400;
-        errorCode = 'CART_VALIDATION_ERROR';
-      } else if (errorMessage.includes('out of stock') || errorMessage.includes('available')) {
-        statusCode = 400;
-        errorCode = 'INSUFFICIENT_STOCK';
+      if (message.includes('empty') || message.includes('not found')) {
+        res.status(400).json({ success: false, error: message });
+      } else if (message.includes('available') || message.includes('stock')) {
+        res.status(409).json({ success: false, error: message });
+      } else {
+        res.status(500).json({ success: false, error: message });
       }
-
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
-      });
     }
   };
 
   /**
-   * Get user's order history
-   * GET /api/orders
+   * Get order by ID
    */
-  getOrderHistory = async (req: AuthenticatedRequest, res: Response) => {
+  getOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const orderId = req.params.orderId;
       const userId = req.user!.id;
-      const options: OrderHistoryOptions = {
-        page: parseInt(req.query.page as string) || 1,
-        limit: parseInt(req.query.limit as string) || 10,
-        status: req.query.status as OrderStatus,
-        startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
-        endDate: req.query.endDate ? new Date(req.query.endDate as string) : undefined,
-      };
+      const userRole = req.user!.role;
 
-      const result = await this.orderService.getOrderHistory(userId, options);
+      const order = await this.orderService.getOrderById(orderId);
 
-      const response: OrderHistoryResponse = {
-        orders: result.orders.map(order => ({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          userId: order.userId,
-          status: order.status,
-          items: order.items.map(item => ({
-            id: item.id,
-            productId: item.productId,
-            productTitle: item.productTitle,
-            productImage: item.productImage,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            totalPrice: item.totalPrice,
-          })),
-          subtotal: order.subtotal,
-          tax: order.tax,
-          shipping: order.shipping,
-          total: order.total,
-          shippingAddress: order.shippingAddress,
-          billingAddress: order.billingAddress,
-          paymentMethod: order.paymentMethod,
-          trackingNumber: order.trackingNumber,
-          customerNotes: order.customerNotes,
-          createdAt: order.createdAt.toISOString(),
-          updatedAt: order.updatedAt.toISOString(),
-        })),
-        pagination: {
-          page: result.page,
-          limit: result.limit,
-          total: result.total,
-          totalPages: result.totalPages,
-        },
-      };
+      if (!order) {
+        res.status(404).json({
+          success: false,
+          error: 'Order not found'
+        });
+        return;
+      }
 
-      res.status(200).json({
+      // Check if user can access this order
+      if (userRole !== 'admin' && order.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied'
+        });
+        return;
+      }
+
+      res.json({
         success: true,
-        data: response,
-        message: 'Order history retrieved successfully',
-        timestamp: new Date().toISOString(),
+        data: this.formatOrderResponse(order)
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve order history';
-      
+      console.error('Error getting order:', error);
       res.status(500).json({
         success: false,
-        error: {
-          code: 'ORDER_HISTORY_ERROR',
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
+        error: 'Failed to get order'
       });
     }
   };
 
   /**
-   * Get specific order details
-   * GET /api/orders/:orderId
+   * Get user's orders
    */
-  getOrderById = async (req: AuthenticatedRequest, res: Response) => {
+  getUserOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const { orderId } = req.params;
-
-      const order = await this.orderService.getOrderById(userId, orderId);
-
-      const response: OrderResponse = {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        userId: order.userId,
-        status: order.status,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productTitle: item.productTitle,
-          productImage: item.productImage,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-          totalPrice: item.totalPrice,
-        })),
-        subtotal: order.subtotal,
-        tax: order.tax,
-        shipping: order.shipping,
-        total: order.total,
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        paymentMethod: order.paymentMethod,
-        trackingNumber: order.trackingNumber,
-        customerNotes: order.customerNotes,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString(),
-      };
-
-      res.status(200).json({
-        success: true,
-        data: response,
-        message: 'Order retrieved successfully',
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve order';
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
       
-      let statusCode = 500;
-      let errorCode = 'ORDER_RETRIEVAL_ERROR';
-
-      if (errorMessage.includes('Order not found')) {
-        statusCode = 404;
-        errorCode = 'ORDER_NOT_FOUND';
+      const filters: Partial<OrderFilters> = {};
+      
+      if (req.query.status) {
+        filters.status = req.query.status as OrderStatus;
+      }
+      
+      if (req.query.paymentStatus) {
+        filters.paymentStatus = req.query.paymentStatus as PaymentStatus;
       }
 
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
+      if (req.query.dateFrom) {
+        filters.dateFrom = new Date(req.query.dateFrom as string);
+      }
+
+      if (req.query.dateTo) {
+        filters.dateTo = new Date(req.query.dateTo as string);
+      }
+
+      const result = await this.orderService.getUserOrders(userId, page, limit, filters);
+
+      res.json({
+        success: true,
+        data: {
+          orders: result.orders.map(order => this.formatOrderResponse(order)),
+          pagination: {
+            total: result.total,
+            totalPages: result.totalPages,
+            currentPage: result.currentPage,
+            limit
+          }
+        }
       });
+    } catch (error) {
+      console.error('Error getting user orders:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get orders'
+      });
+    }
+  };
+
+  /**
+   * Update order (admin only)
+   */
+  updateOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const validation = updateOrderSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid request data',
+          details: validation.error.errors
+        });
+        return;
+      }
+
+      const orderId = req.params.orderId;
+      const updateData: OrderUpdateData = validation.data;
+
+      const order = await this.orderService.updateOrder(orderId, updateData);
+
+      res.json({
+        success: true,
+        message: 'Order updated successfully',
+        data: this.formatOrderResponse(order)
+      });
+    } catch (error) {
+      console.error('Error updating order:', error);
+      const message = error instanceof Error ? error.message : 'Failed to update order';
+      
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+      } else if (message.includes('transition') || message.includes('Cannot')) {
+        res.status(400).json({ success: false, error: message });
+      } else {
+        res.status(500).json({ success: false, error: message });
+      }
     }
   };
 
   /**
    * Cancel order
-   * POST /api/orders/:orderId/cancel
    */
-  cancelOrder = async (req: AuthenticatedRequest, res: Response) => {
+  cancelOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const orderId = req.params.orderId;
       const userId = req.user!.id;
-      const { orderId } = req.params;
-      const { reason } = req.body;
+      const userRole = req.user!.role;
+      const reason = req.body.reason;
 
-      const order = await this.orderService.cancelOrder(userId, orderId, reason);
+      // Get order first to check ownership
+      const existingOrder = await this.orderService.getOrderById(orderId);
+      
+      if (!existingOrder) {
+        res.status(404).json({
+          success: false,
+          error: 'Order not found'
+        });
+        return;
+      }
 
-      const response: OrderResponse = {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        userId: order.userId,
-        status: order.status,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productTitle: item.productTitle,
-          productImage: item.productImage,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-          totalPrice: item.totalPrice,
-        })),
-        subtotal: order.subtotal,
-        tax: order.tax,
-        shipping: order.shipping,
-        total: order.total,
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        paymentMethod: order.paymentMethod,
-        trackingNumber: order.trackingNumber,
-        customerNotes: order.customerNotes,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString(),
-      };
+      // Check if user can cancel this order
+      if (userRole !== 'admin' && existingOrder.userId !== userId) {
+        res.status(403).json({
+          success: false,
+          error: 'Access denied'
+        });
+        return;
+      }
 
-      res.status(200).json({
+      const order = await this.orderService.cancelOrder(orderId, reason);
+
+      res.json({
         success: true,
-        data: response,
         message: 'Order cancelled successfully',
-        timestamp: new Date().toISOString(),
+        data: this.formatOrderResponse(order)
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel order';
+      console.error('Error cancelling order:', error);
+      const message = error instanceof Error ? error.message : 'Failed to cancel order';
       
-      let statusCode = 500;
-      let errorCode = 'ORDER_CANCELLATION_ERROR';
-
-      if (errorMessage.includes('Order not found')) {
-        statusCode = 404;
-        errorCode = 'ORDER_NOT_FOUND';
-      } else if (errorMessage.includes('cannot be cancelled')) {
-        statusCode = 400;
-        errorCode = 'ORDER_NOT_CANCELLABLE';
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+      } else if (message.includes('cannot be cancelled')) {
+        res.status(400).json({ success: false, error: message });
+      } else {
+        res.status(500).json({ success: false, error: message });
       }
-
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
-      });
     }
   };
 
   /**
-   * Update order status (Admin only)
-   * PUT /api/orders/:orderId/status
+   * Process payment (admin only)
    */
-  updateOrderStatus = async (req: AuthenticatedRequest, res: Response) => {
+  processPayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { orderId } = req.params;
-      const { status, trackingNumber }: OrderStatusUpdateRequest = req.body;
-
-      const order = await this.orderService.updateOrderStatus(orderId, status, trackingNumber);
-
-      const response: OrderResponse = {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        userId: order.userId,
-        status: order.status,
-        items: order.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productTitle: item.productTitle,
-          productImage: item.productImage,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-          totalPrice: item.totalPrice,
-        })),
-        subtotal: order.subtotal,
-        tax: order.tax,
-        shipping: order.shipping,
-        total: order.total,
-        shippingAddress: order.shippingAddress,
-        billingAddress: order.billingAddress,
-        paymentMethod: order.paymentMethod,
-        trackingNumber: order.trackingNumber,
-        customerNotes: order.customerNotes,
-        createdAt: order.createdAt.toISOString(),
-        updatedAt: order.updatedAt.toISOString(),
-      };
-
-      res.status(200).json({
-        success: true,
-        data: response,
-        message: 'Order status updated successfully',
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update order status';
-      
-      let statusCode = 500;
-      let errorCode = 'ORDER_STATUS_UPDATE_ERROR';
-
-      if (errorMessage.includes('Order not found')) {
-        statusCode = 404;
-        errorCode = 'ORDER_NOT_FOUND';
-      } else if (errorMessage.includes('Invalid status transition')) {
-        statusCode = 400;
-        errorCode = 'INVALID_STATUS_TRANSITION';
+      const validation = processPaymentSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid request data',
+          details: validation.error.errors
+        });
+        return;
       }
 
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
+      const orderId = req.params.orderId;
+      const paymentData = validation.data;
+
+      const order = await this.orderService.processPayment(orderId, paymentData);
+
+      res.json({
+        success: true,
+        message: 'Payment processed successfully',
+        data: this.formatOrderResponse(order)
       });
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      const message = error instanceof Error ? error.message : 'Failed to process payment';
+      
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+      } else if (message.includes('does not match')) {
+        res.status(400).json({ success: false, error: message });
+      } else {
+        res.status(500).json({ success: false, error: message });
+      }
     }
   };
 
   /**
-   * Get order statistics (Admin only)
-   * GET /api/orders/statistics
+   * Fulfill order item (admin only)
    */
-  getOrderStatistics = async (req: AuthenticatedRequest, res: Response) => {
+  fulfillOrderItem = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const validation = fulfillItemSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid request data',
+          details: validation.error.errors
+        });
+        return;
+      }
 
-      const stats = await this.orderService.getOrderStatistics(startDate, endDate);
+      const orderItemId = req.params.itemId;
+      const { quantity } = validation.data;
 
-      const response: OrderStatisticsResponse = {
-        totalOrders: stats.totalOrders,
-        totalRevenue: stats.totalRevenue,
-        averageOrderValue: stats.averageOrderValue,
-        ordersByStatus: stats.ordersByStatus,
-      };
+      const orderItem = await this.orderService.fulfillOrderItem(orderItemId, quantity);
 
-      res.status(200).json({
+      res.json({
         success: true,
-        data: response,
-        message: 'Order statistics retrieved successfully',
-        timestamp: new Date().toISOString(),
+        message: 'Order item fulfilled successfully',
+        data: {
+          orderItemId: orderItem.id,
+          fulfilledQuantity: orderItem.fulfilledQuantity,
+          remainingQuantity: orderItem.remainingQuantity,
+          fulfillmentStatus: orderItem.fulfillmentStatus
+        }
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to retrieve order statistics';
+      console.error('Error fulfilling order item:', error);
+      const message = error instanceof Error ? error.message : 'Failed to fulfill order item';
       
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, error: message });
+      } else if (message.includes('Cannot fulfill') || message.includes('must be greater')) {
+        res.status(400).json({ success: false, error: message });
+      } else {
+        res.status(500).json({ success: false, error: message });
+      }
+    }
+  };
+
+  /**
+   * Get order statistics (admin only)
+   */
+  getOrderStatistics = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const filters: Partial<OrderFilters> = {};
+
+      if (req.query.dateFrom) {
+        filters.dateFrom = new Date(req.query.dateFrom as string);
+      }
+
+      if (req.query.dateTo) {
+        filters.dateTo = new Date(req.query.dateTo as string);
+      }
+
+      const statistics = await this.orderService.getOrderStatistics(filters);
+
+      res.json({
+        success: true,
+        data: statistics
+      });
+    } catch (error) {
+      console.error('Error getting order statistics:', error);
       res.status(500).json({
         success: false,
-        error: {
-          code: 'ORDER_STATISTICS_ERROR',
-          message: errorMessage,
-        },
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
+        error: 'Failed to get order statistics'
       });
     }
   };
+
+  /**
+   * Format order response
+   */
+  private formatOrderResponse(order: any) {
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      totalAmount: order.totalAmount,
+      subtotal: order.subtotal,
+      taxAmount: order.taxAmount,
+      shippingAmount: order.shippingAmount,
+      discountAmount: order.discountAmount,
+      currency: order.currency,
+      itemCount: order.itemCount,
+      shippingAddress: order.shippingAddress,
+      billingAddress: order.billingAddress,
+      shippingMethod: order.shippingMethod,
+      trackingNumber: order.trackingNumber,
+      carrier: order.carrier,
+      paymentMethod: order.paymentMethod,
+      customerNotes: order.customerNotes,
+      adminNotes: order.adminNotes,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      confirmedAt: order.confirmedAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      cancelledAt: order.cancelledAt,
+      items: order.items?.map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        productTitle: item.productTitle,
+        productSku: item.productSku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        originalPrice: item.originalPrice,
+        discountAmount: item.discountAmount,
+        lineTotal: item.lineTotal,
+        selectedVariant: item.selectedVariant,
+        customizations: item.customizations,
+        fulfillmentStatus: item.fulfillmentStatus,
+        fulfilledQuantity: item.fulfilledQuantity,
+        remainingQuantity: item.remainingQuantity,
+        product: item.product ? {
+          id: item.product.id,
+          title: item.product.title,
+          slug: item.product.slug,
+          images: item.product.images,
+          price: item.product.price
+        } : null
+      }))
+    };
+  }
 }

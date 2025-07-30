@@ -2,8 +2,6 @@ import { Router } from 'express';
 import { ProductController, CreateProductSchema, UpdateProductSchema, UpdateStockSchema } from '../controllers/ProductController';
 import { validateBody } from '../middleware/validation';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
-import { uploadMultiple, handleUploadError } from '../middleware/upload';
-import { z } from 'zod';
 
 /**
  * Product routes
@@ -87,44 +85,6 @@ router.delete(
   authenticateToken,
   requireAdmin,
   productController.deleteProduct
-);
-
-/**
- * POST /api/products/:id/images
- * Upload images for a product (Admin only)
- */
-router.post(
-  '/:id/images',
-  authenticateToken,
-  requireAdmin,
-  uploadMultiple('images', 10),
-  handleUploadError,
-  productController.uploadImages
-);
-
-/**
- * DELETE /api/products/:id/images/:filename
- * Delete a specific image from a product (Admin only)
- */
-router.delete(
-  '/:id/images/:filename',
-  authenticateToken,
-  requireAdmin,
-  productController.deleteImage
-);
-
-/**
- * PUT /api/products/:id/images/reorder
- * Reorder product images (Admin only)
- */
-router.put(
-  '/:id/images/reorder',
-  authenticateToken,
-  requireAdmin,
-  validateBody(z.object({
-    imageOrder: z.array(z.string()).min(1, 'At least one image is required')
-  })),
-  productController.reorderImages
 );
 
 export default router;

@@ -1,289 +1,225 @@
-import { Repository } from 'typeorm';
+import { Repository, FindManyOptions, In } from 'typeorm';
 import { AppDataSource } from '../config/database';
-import { Order, OrderStatus } from '../entities/Order';
-import { OrderItem } from '../entities/OrderItem';
-import { User } from '../entities/User';
-import { Address } from '../entities/Address';
-import { Product } from '../entities/Product';
-import { CartService } from './CartService';
+import { Order, OrderItem, Cart, Product, User, OrderStatus, PaymentStatus } from '../entities';
 
-/**
- * Interface for checkout data
- */
-export interface CheckoutData {
-  shippingAddressId?: string;
-  billingAddressId?: string;
-  shippingAddress?: {
-    firstName: string;
-    lastName: string;
-    company?: string;
-    addressLine1: string;
-    addressLine2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-    phone?: string;
-  };
-  billingAddress?: {
-    firstName: string;
-    lastName: string;
-    company?: string;
-    addressLine1: string;
-    addressLine2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-    phone?: string;
-  };
-  paymentMethod?: string;
+export interface CreateOrderData {
+  userId: string;
+  shippingAddress: any;
+  billingAddress?: any;
+  shippingMethod?: string;
+  paymentMethod: string;
   customerNotes?: string;
 }
 
-/**
- * Interface for order totals calculation
- */
-export interface OrderTotals {
-  subtotal: number;
-  tax: number;
-  shipping: number;
-  total: number;
+export interface OrderFilters {
+  status?: OrderStatus | OrderStatus[];
+  paymentStatus?: PaymentStatus | PaymentStatus[];
+  userId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  search?: string; // Search by order number, customer name, email
 }
 
-/**
- * Interface for order history query options
- */
-export interface OrderHistoryOptions {
-  page?: number;
-  limit?: number;
+export interface OrderUpdateData {
   status?: OrderStatus;
-  startDate?: Date;
-  endDate?: Date;
+  paymentStatus?: PaymentStatus;
+  trackingNumber?: string;
+  carrier?: string;
+  adminNotes?: string;
+  shippingMethod?: string;
 }
 
-/**
- * Service class for managing order operations
- */
 export class OrderService {
   private orderRepository: Repository<Order>;
   private orderItemRepository: Repository<OrderItem>;
-  private userRepository: Repository<User>;
-  private addressRepository: Repository<Address>;
+  private cartRepository: Repository<Cart>;
   private productRepository: Repository<Product>;
-  private cartService: CartService;
-
-  // Tax and shipping configuration
-  private readonly TAX_RATE = 0.08; // 8% tax rate
-  private readonly FREE_SHIPPING_THRESHOLD = 100; // Free shipping over $100
-  private readonly STANDARD_SHIPPING_RATE = 9.99;
+  private userRepository: Repository<User>;
 
   constructor() {
     this.orderRepository = AppDataSource.getRepository(Order);
     this.orderItemRepository = AppDataSource.getRepository(OrderItem);
-    this.userRepository = AppDataSource.getRepository(User);
-    this.addressRepository = AppDataSource.getRepository(Address);
+    this.cartRepository = AppDataSource.getRepository(Cart);
     this.productRepository = AppDataSource.getRepository(Product);
-    this.cartService = new CartService();
+    this.userRepository = AppDataSource.getRepository(User);
   }
 
   /**
    * Create order from user's cart
    */
-  async createOrder(userId: string, checkoutData: CheckoutData): Promise<Order> {
-    // Start transaction
-    return await AppDataSource.transaction(async (manager) => {
-      // Get user's cart and validate
-      const cart = await this.cartService.getCart(userId);
-      
-      if (!cart.items || cart.items.length === 0) {
-        throw new Error('Cart is empty');
-      }
-
-      // Validate cart contents
-      const validation = await this.cartService.validateCart(userId);
-      if (!validation.isValid) {
-        throw new Error(`Cart validation failed: ${validation.errors.join(', ')}`);
-      }
-
-      // Get or validate addresses
-      const shippingAddress = await this.getOrderAddress(
-        userId, 
-        checkoutData.shippingAddressId, 
-        checkoutData.shippingAddress,
-        'shipping'
-      );
-      
-      const billingAddress = await this.getOrderAddress(
-        userId, 
-        checkoutData.billingAddressId, 
-        checkoutData.billingAddress || checkoutData.shippingAddress,
-        'billing'
-      );
-
-      // Calculate totals
-      const totals = this.calculateOrderTotals(cart.subtotal);
-
-      // Generate order number
-      const orderNumber = await this.generateOrderNumber();
-
-      // Create order
-      const order = manager.getRepository(Order).create({
-        orderNumber,
-        userId,
-        status: OrderStatus.PENDING,
-        subtotal: totals.subtotal,
-        tax: totals.tax,
-        shipping: totals.shipping,
-        total: totals.total,
-        shippingAddress,
-        billingAddress,
-        paymentMethod: checkoutData.paymentMethod,
-        customerNotes: checkoutData.customerNotes,
-      });
-
-      const savedOrder = await manager.getRepository(Order).save(order);
-
-      // Create order items from cart items
-      const orderItems = cart.items.map(cartItem => {
-        return manager.getRepository(OrderItem).create({
-          orderId: savedOrder.id,
-          productId: cartItem.productId,
-          productTitle: cartItem.product.title,
-          productDescription: cartItem.product.description,
-          productSku: cartItem.product.sku,
-          quantity: cartItem.quantity,
-          unitPrice: cartItem.price,
-          discount: 0, // No discounts for now
-          productImage: cartItem.product.images?.[0],
-          productSpecifications: cartItem.product.specifications,
-        });
-      });
-
-      await manager.getRepository(OrderItem).save(orderItems);
-
-      // Update product stock quantities
-      for (const cartItem of cart.items) {
-        const product = await manager.getRepository(Product).findOne({
-          where: { id: cartItem.productId }
-        });
-        
-        if (product) {
-          product.stockQuantity -= cartItem.quantity;
-          if (product.stockQuantity <= 0) {
-            product.inStock = false;
-          }
-          await manager.getRepository(Product).save(product);
-        }
-      }
-
-      // Clear the cart
-      await this.cartService.clearCart(userId);
-
-      // Return order with items
-      return await manager.getRepository(Order).findOne({
-        where: { id: savedOrder.id },
-        relations: ['items', 'items.product'],
-      }) as Order;
-    });
-  }
-
-  /**
-   * Calculate order totals including tax and shipping
-   */
-  calculateOrderTotals(subtotal: number): OrderTotals {
-    const tax = Math.round(subtotal * this.TAX_RATE * 100) / 100;
-    const shipping = subtotal >= this.FREE_SHIPPING_THRESHOLD ? 0 : this.STANDARD_SHIPPING_RATE;
-    const total = Math.round((subtotal + tax + shipping) * 100) / 100;
-
-    return {
-      subtotal: Math.round(subtotal * 100) / 100,
-      tax,
-      shipping,
-      total,
-    };
-  }
-
-  /**
-   * Generate unique order number
-   */
-  async generateOrderNumber(): Promise<string> {
-    const timestamp = Date.now().toString();
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    const orderNumber = `ORD${timestamp.slice(-8)}${random}`;
-
-    // Check if order number already exists (very unlikely)
-    const existingOrder = await this.orderRepository.findOne({
-      where: { orderNumber }
+  async createOrderFromCart(
+    userId: string,
+    orderData: CreateOrderData
+  ): Promise<Order> {
+    // Get user's active cart
+    const cart = await this.cartRepository.findOne({
+      where: { userId, status: 'active' },
+      relations: ['items', 'items.product', 'user']
     });
 
-    if (existingOrder) {
-      // Recursively generate new number if collision occurs
-      return await this.generateOrderNumber();
+    if (!cart || cart.items.length === 0) {
+      throw new Error('Cart is empty or not found');
     }
 
-    return orderNumber;
-  }
+    // Validate cart items before creating order
+    for (const cartItem of cart.items) {
+      const product = await this.productRepository.findOne({ 
+        where: { id: cartItem.productId } 
+      });
 
-  /**
-   * Get order by ID for a specific user
-   */
-  async getOrderById(userId: string, orderId: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id: orderId, userId },
-      relations: ['items', 'items.product'],
-    });
+      if (!product || !product.isActive) {
+        throw new Error(`Product "${cartItem.product.title}" is no longer available`);
+      }
 
-    if (!order) {
-      throw new Error('Order not found');
+      if (cartItem.quantity > product.stockQuantity) {
+        throw new Error(`Insufficient stock for "${product.title}". Only ${product.stockQuantity} available.`);
+      }
     }
 
-    return order;
+    // Generate unique order number
+    const orderNumber = await this.generateOrderNumber();
+
+    // Create order
+    const order = this.orderRepository.create({
+      orderNumber,
+      userId,
+      user: cart.user,
+      status: OrderStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+      subtotal: cart.subtotal,
+      taxAmount: cart.tax,
+      shippingAmount: cart.shipping,
+      totalAmount: cart.total,
+      currency: cart.currency,
+      shippingAddress: orderData.shippingAddress,
+      billingAddress: orderData.billingAddress || orderData.shippingAddress,
+      shippingMethod: orderData.shippingMethod,
+      paymentMethod: orderData.paymentMethod,
+      customerNotes: orderData.customerNotes
+    });
+
+    const savedOrder = await this.orderRepository.save(order);
+
+    // Create order items from cart items
+    const orderItems: OrderItem[] = [];
+    for (const cartItem of cart.items) {
+      const orderItem = this.orderItemRepository.create({
+        orderId: savedOrder.id,
+        productId: cartItem.productId,
+        product: cartItem.product,
+        quantity: cartItem.quantity,
+        unitPrice: cartItem.unitPrice,
+        originalPrice: cartItem.product.price,
+        selectedVariant: cartItem.getVariant(),
+        customizations: cartItem.getCustomizations()
+      });
+
+      // Create product snapshot
+      orderItem.createProductSnapshot(cartItem.product);
+      
+      orderItems.push(orderItem);
+    }
+
+    await this.orderItemRepository.save(orderItems);
+
+    // Update product stock
+    for (const cartItem of cart.items) {
+      await this.productRepository.decrement(
+        { id: cartItem.productId },
+        'stockQuantity',
+        cartItem.quantity
+      );
+    }
+
+    // Convert cart to 'converted' status
+    cart.status = 'converted';
+    await this.cartRepository.save(cart);
+
+    // Return complete order with items
+    const completeOrder = await this.getOrderById(savedOrder.id);
+    if (!completeOrder) {
+      throw new Error('Failed to retrieve created order');
+    }
+    
+    return completeOrder;
   }
 
   /**
-   * Get order history for a user with pagination
+   * Get order by ID
    */
-  async getOrderHistory(userId: string, options: OrderHistoryOptions = {}): Promise<{
+  async getOrderById(orderId: string): Promise<Order | null> {
+    return await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: ['items', 'items.product', 'user']
+    });
+  }
+
+  /**
+   * Get order by order number
+   */
+  async getOrderByNumber(orderNumber: string): Promise<Order | null> {
+    return await this.orderRepository.findOne({
+      where: { orderNumber },
+      relations: ['items', 'items.product', 'user']
+    });
+  }
+
+  /**
+   * Get orders for a user
+   */
+  async getUserOrders(
+    userId: string,
+    page = 1,
+    limit = 10,
+    filters: Partial<OrderFilters> = {}
+  ): Promise<{
     orders: Order[];
     total: number;
-    page: number;
-    limit: number;
     totalPages: number;
+    currentPage: number;
   }> {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      startDate,
-      endDate,
-    } = options;
-
     const queryBuilder = this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
-      .where('order.userId = :userId', { userId })
-      .orderBy('order.createdAt', 'DESC');
+      .leftJoinAndSelect('order.user', 'user')
+      .where('order.userId = :userId', { userId });
 
     // Apply filters
-    if (status) {
-      queryBuilder.andWhere('order.status = :status', { status });
+    if (filters.status) {
+      if (Array.isArray(filters.status)) {
+        queryBuilder.andWhere('order.status IN (:...statuses)', { statuses: filters.status });
+      } else {
+        queryBuilder.andWhere('order.status = :status', { status: filters.status });
+      }
     }
 
-    if (startDate) {
-      queryBuilder.andWhere('order.createdAt >= :startDate', { startDate });
+    if (filters.paymentStatus) {
+      if (Array.isArray(filters.paymentStatus)) {
+        queryBuilder.andWhere('order.paymentStatus IN (:...paymentStatuses)', { 
+          paymentStatuses: filters.paymentStatus 
+        });
+      } else {
+        queryBuilder.andWhere('order.paymentStatus = :paymentStatus', { 
+          paymentStatus: filters.paymentStatus 
+        });
+      }
     }
 
-    if (endDate) {
-      queryBuilder.andWhere('order.createdAt <= :endDate', { endDate });
+    if (filters.dateFrom) {
+      queryBuilder.andWhere('order.createdAt >= :dateFrom', { dateFrom: filters.dateFrom });
     }
 
-    // Get total count
+    if (filters.dateTo) {
+      queryBuilder.andWhere('order.createdAt <= :dateTo', { dateTo: filters.dateTo });
+    }
+
+    // Count total
     const total = await queryBuilder.getCount();
 
-    // Apply pagination
+    // Apply pagination and ordering
     const orders = await queryBuilder
+      .orderBy('order.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
@@ -291,189 +227,205 @@ export class OrderService {
     return {
       orders,
       total,
-      page,
-      limit,
       totalPages: Math.ceil(total / limit),
+      currentPage: page
     };
   }
 
   /**
-   * Update order status
+   * Update order
    */
-  async updateOrderStatus(orderId: string, status: OrderStatus, trackingNumber?: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id: orderId },
-      relations: ['items'],
-    });
-
+  async updateOrder(orderId: string, updateData: OrderUpdateData): Promise<Order> {
+    const order = await this.getOrderById(orderId);
+    
     if (!order) {
       throw new Error('Order not found');
     }
 
-    // Validate status transition
-    if (!this.isValidStatusTransition(order.status, status)) {
-      throw new Error(`Invalid status transition from ${order.status} to ${status}`);
+    // Validate status transition if status is being updated
+    if (updateData.status && updateData.status !== order.status) {
+      if (!order.canTransitionTo(updateData.status)) {
+        throw new Error(`Cannot transition order from ${order.status} to ${updateData.status}`);
+      }
+      order.updateStatus(updateData.status);
     }
 
-    order.status = status;
+    // Update other fields
+    Object.assign(order, updateData);
 
-    // Set timestamps based on status
-    if (status === OrderStatus.SHIPPED) {
-      order.shippedAt = new Date();
-      if (trackingNumber) {
-        order.trackingNumber = trackingNumber;
-      }
-    } else if (status === OrderStatus.DELIVERED) {
-      order.deliveredAt = new Date();
+    return await this.orderRepository.save(order);
+  }
+
+  /**
+   * Cancel order
+   */
+  async cancelOrder(orderId: string, reason?: string): Promise<Order> {
+    const order = await this.getOrderById(orderId);
+    
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (!order.isCancellable) {
+      throw new Error(`Order with status ${order.status} cannot be cancelled`);
+    }
+
+    // Restore product stock
+    for (const item of order.items) {
+      await this.productRepository.increment(
+        { id: item.productId },
+        'stockQuantity',
+        item.quantity
+      );
+    }
+
+    // Update order status
+    order.updateStatus(OrderStatus.CANCELLED);
+    if (reason) {
+      order.adminNotes = (order.adminNotes || '') + `\nCancellation reason: ${reason}`;
     }
 
     return await this.orderRepository.save(order);
   }
 
   /**
-   * Cancel order if possible
+   * Process payment for order
    */
-  async cancelOrder(userId: string, orderId: string, reason?: string): Promise<Order> {
-    const order = await this.orderRepository.findOne({
-      where: { id: orderId, userId },
-      relations: ['items', 'items.product'],
-    });
-
+  async processPayment(
+    orderId: string,
+    paymentData: {
+      transactionId: string;
+      amount: number;
+      status: PaymentStatus;
+    }
+  ): Promise<Order> {
+    const order = await this.getOrderById(orderId);
+    
     if (!order) {
       throw new Error('Order not found');
     }
 
-    if (!order.canBeCancelled) {
-      throw new Error('Order cannot be cancelled in its current status');
+    if (paymentData.amount !== order.totalAmount) {
+      throw new Error('Payment amount does not match order total');
     }
 
-    // Restore product stock
-    await AppDataSource.transaction(async (manager) => {
-      for (const item of order.items) {
-        const product = await manager.getRepository(Product).findOne({
-          where: { id: item.productId }
-        });
-        
-        if (product) {
-          product.stockQuantity += item.quantity;
-          product.inStock = true;
-          await manager.getRepository(Product).save(product);
-        }
-      }
+    order.paymentStatus = paymentData.status;
+    order.paymentTransactionId = paymentData.transactionId;
 
-      // Update order status
-      order.status = OrderStatus.CANCELLED;
-      if (reason) {
-        order.notes = reason;
-      }
-      await manager.getRepository(Order).save(order);
-    });
+    // If payment is successful, move order to confirmed status
+    if (paymentData.status === PaymentStatus.CAPTURED && order.status === OrderStatus.PENDING) {
+      order.updateStatus(OrderStatus.CONFIRMED);
+    }
 
-    return order;
+    return await this.orderRepository.save(order);
   }
 
   /**
-   * Get order statistics for admin
+   * Fulfill order items
    */
-  async getOrderStatistics(startDate?: Date, endDate?: Date): Promise<{
+  async fulfillOrderItem(
+    orderItemId: string,
+    quantity: number
+  ): Promise<OrderItem> {
+    const orderItem = await this.orderItemRepository.findOne({
+      where: { id: orderItemId },
+      relations: ['order']
+    });
+
+    if (!orderItem) {
+      throw new Error('Order item not found');
+    }
+
+    orderItem.fulfillQuantity(quantity);
+    await this.orderItemRepository.save(orderItem);
+
+    // Check if all items in the order are fulfilled
+    const allItems = await this.orderItemRepository.find({
+      where: { orderId: orderItem.orderId }
+    });
+
+    const allFulfilled = allItems.every(item => item.isFullyFulfilled);
+    
+    if (allFulfilled && orderItem.order.status === OrderStatus.PROCESSING) {
+      await this.updateOrder(orderItem.orderId, { status: OrderStatus.SHIPPED });
+    }
+
+    return orderItem;
+  }
+
+  /**
+   * Get order statistics
+   */
+  async getOrderStatistics(filters: Partial<OrderFilters> = {}): Promise<{
     totalOrders: number;
     totalRevenue: number;
     averageOrderValue: number;
     ordersByStatus: Record<OrderStatus, number>;
+    ordersByPaymentStatus: Record<PaymentStatus, number>;
   }> {
     const queryBuilder = this.orderRepository.createQueryBuilder('order');
 
-    if (startDate) {
-      queryBuilder.andWhere('order.createdAt >= :startDate', { startDate });
+    // Apply filters
+    if (filters.userId) {
+      queryBuilder.where('order.userId = :userId', { userId: filters.userId });
     }
 
-    if (endDate) {
-      queryBuilder.andWhere('order.createdAt <= :endDate', { endDate });
+    if (filters.dateFrom) {
+      queryBuilder.andWhere('order.createdAt >= :dateFrom', { dateFrom: filters.dateFrom });
+    }
+
+    if (filters.dateTo) {
+      queryBuilder.andWhere('order.createdAt <= :dateTo', { dateTo: filters.dateTo });
     }
 
     const orders = await queryBuilder.getMany();
 
     const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + Number(order.totalAmount), 0);
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    const ordersByStatus = orders.reduce((acc, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    }, {} as Record<OrderStatus, number>);
+    // Count by status
+    const ordersByStatus = {} as Record<OrderStatus, number>;
+    const ordersByPaymentStatus = {} as Record<PaymentStatus, number>;
+
+    Object.values(OrderStatus).forEach(status => {
+      ordersByStatus[status] = 0;
+    });
+
+    Object.values(PaymentStatus).forEach(status => {
+      ordersByPaymentStatus[status] = 0;
+    });
+
+    orders.forEach(order => {
+      ordersByStatus[order.status]++;
+      ordersByPaymentStatus[order.paymentStatus]++;
+    });
 
     return {
       totalOrders,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      averageOrderValue: Math.round(averageOrderValue * 100) / 100,
+      totalRevenue,
+      averageOrderValue,
       ordersByStatus,
+      ordersByPaymentStatus
     };
   }
 
   /**
-   * Get or validate address for order
+   * Generate unique order number
    */
-  private async getOrderAddress(
-    userId: string,
-    addressId?: string,
-    addressData?: any,
-    type: 'shipping' | 'billing' = 'shipping'
-  ): Promise<any> {
-    if (addressId) {
-      // Use existing address
-      const address = await this.addressRepository.findOne({
-        where: { id: addressId, userId }
-      });
-
-      if (!address) {
-        throw new Error(`${type} address not found`);
-      }
-
-      if (type === 'shipping' && !address.canBeUsedForShipping()) {
-        throw new Error('Address cannot be used for shipping');
-      }
-
-      if (type === 'billing' && !address.canBeUsedForBilling()) {
-        throw new Error('Address cannot be used for billing');
-      }
-
-      return address.toOrderAddress();
-    } else if (addressData) {
-      // Use provided address data
-      this.validateAddressData(addressData, type);
-      return addressData;
-    } else {
-      throw new Error(`${type} address is required`);
-    }
-  }
-
-  /**
-   * Validate address data completeness
-   */
-  private validateAddressData(addressData: any, type: string): void {
-    const required = ['firstName', 'lastName', 'addressLine1', 'city', 'state', 'postalCode', 'country'];
+  private async generateOrderNumber(): Promise<string> {
+    const prefix = 'TMF';
+    const timestamp = Date.now().toString().slice(-8);
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     
-    for (const field of required) {
-      if (!addressData[field]) {
-        throw new Error(`${type} address ${field} is required`);
-      }
+    let orderNumber = `${prefix}${timestamp}${random}`;
+    
+    // Ensure uniqueness
+    while (await this.orderRepository.findOne({ where: { orderNumber } })) {
+      const newRandom = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      orderNumber = `${prefix}${timestamp}${newRandom}`;
     }
-  }
-
-  /**
-   * Check if status transition is valid
-   */
-  private isValidStatusTransition(currentStatus: OrderStatus, newStatus: OrderStatus): boolean {
-    const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-      [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-      [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
-      [OrderStatus.DELIVERED]: [OrderStatus.REFUNDED],
-      [OrderStatus.CANCELLED]: [],
-      [OrderStatus.REFUNDED]: [],
-    };
-
-    return validTransitions[currentStatus]?.includes(newStatus) || false;
+    
+    return orderNumber;
   }
 }

@@ -1,82 +1,72 @@
 import { Router } from 'express';
 import { OrderController } from '../controllers/OrderController';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
-import { validateBody, validateParams, validateQuery } from '../middleware/validation';
-import {
-  CheckoutSchema,
-  OrderStatusUpdateSchema,
-  OrderCancellationSchema,
-  OrderIdParamsSchema,
-  OrderHistoryQuerySchema,
-  OrderStatisticsQuerySchema,
-} from '../types/order';
+import { authenticateToken, requireRole } from '../middleware/auth';
+import { validateBody } from '../middleware/validation';
+import { UserRole } from '../entities/User';
+import { z } from 'zod';
 
-/**
- * Order routes
- * Base path: /api/orders
- * All routes require authentication
- */
 const router = Router();
 const orderController = new OrderController();
 
-// Apply authentication middleware to all order routes
-router.use(authenticateToken);
+// Validation schemas for route-specific validation
+const cancelOrderValidation = z.object({
+  reason: z.string().optional()
+});
 
 /**
- * POST /api/orders
- * Create order from cart (checkout)
+ * @route POST /api/orders
+ * @desc Create order from cart
+ * @access Private (authenticated users)
  */
-router.post('/', validateBody(CheckoutSchema), orderController.checkout);
+router.post('/', authenticateToken, orderController.createOrder);
 
 /**
- * GET /api/orders
- * Get user's order history with pagination and filtering
+ * @route GET /api/orders/my
+ * @desc Get current user's orders
+ * @access Private (authenticated users)
  */
-router.get('/', validateQuery(OrderHistoryQuerySchema), orderController.getOrderHistory);
+router.get('/my', authenticateToken, orderController.getUserOrders);
 
 /**
- * GET /api/orders/statistics
- * Get order statistics (Admin only)
- * Note: This route must come before /:orderId to avoid conflicts
+ * @route GET /api/orders/statistics
+ * @desc Get order statistics
+ * @access Private (admin only)
  */
-router.get(
-  '/statistics',
-  requireAdmin,
-  validateQuery(OrderStatisticsQuerySchema),
-  orderController.getOrderStatistics
-);
+router.get('/statistics', authenticateToken, requireRole([UserRole.ADMIN]), orderController.getOrderStatistics);
 
 /**
- * GET /api/orders/:orderId
- * Get specific order details
+ * @route GET /api/orders/:orderId
+ * @desc Get specific order
+ * @access Private (authenticated users - own orders, admin - all orders)
  */
-router.get(
-  '/:orderId',
-  validateParams(OrderIdParamsSchema),
-  orderController.getOrderById
-);
+router.get('/:orderId', authenticateToken, orderController.getOrder);
 
 /**
- * POST /api/orders/:orderId/cancel
- * Cancel order (customer can cancel their own orders)
+ * @route PUT /api/orders/:orderId
+ * @desc Update order
+ * @access Private (admin only)
  */
-router.post(
-  '/:orderId/cancel',
-  validateParams(OrderIdParamsSchema),
-  validateBody(OrderCancellationSchema),
-  orderController.cancelOrder
-);
+router.put('/:orderId', authenticateToken, requireRole([UserRole.ADMIN]), orderController.updateOrder);
 
 /**
- * PUT /api/orders/:orderId/status
- * Update order status (Admin only)
+ * @route POST /api/orders/:orderId/cancel
+ * @desc Cancel order
+ * @access Private (authenticated users - own orders, admin - all orders)
  */
-router.put(
-  '/:orderId/status',
-  requireAdmin,
-  validateParams(OrderIdParamsSchema),
-  validateBody(OrderStatusUpdateSchema),
-  orderController.updateOrderStatus
-);
+router.post('/:orderId/cancel', authenticateToken, validateBody(cancelOrderValidation), orderController.cancelOrder);
+
+/**
+ * @route POST /api/orders/:orderId/payment
+ * @desc Process payment for order
+ * @access Private (admin only)
+ */
+router.post('/:orderId/payment', authenticateToken, requireRole([UserRole.ADMIN]), orderController.processPayment);
+
+/**
+ * @route POST /api/orders/items/:itemId/fulfill
+ * @desc Fulfill order item
+ * @access Private (admin only)
+ */
+router.post('/items/:itemId/fulfill', authenticateToken, requireRole([UserRole.ADMIN]), orderController.fulfillOrderItem);
 
 export default router;

@@ -4,9 +4,6 @@ import productRoutes from './products';
 import categoryRoutes from './categories';
 import cartRoutes from './cart';
 import orderRoutes from './orders';
-import userRoutes from './users';
-import imageRoutes from './images';
-import adminRoutes from './admin';
 
 /**
  * Main API router
@@ -28,14 +25,5 @@ router.use('/cart', cartRoutes);
 
 // Order routes
 router.use('/orders', orderRoutes);
-
-// User routes
-router.use('/users', userRoutes);
-
-// Admin routes
-router.use('/admin', adminRoutes);
-
-// Image routes
-router.use('/images', imageRoutes);
 
 export default router;
