@@ -168,9 +168,11 @@ export default function CartPage() {
               </div>
               
               <div className="mt-6 space-y-3">
-                <Button variant="cart" size="lg" className="w-full">
-                  Proceed to Checkout
-                </Button>
+                <Link href="/checkout">
+                  <Button variant="cart" size="lg" className="w-full">
+                    Proceed to Checkout
+                  </Button>
+                </Link>
                 
                 <Button variant="amazon" size="lg" className="w-full">
                   Buy Now with 1-Click

@@ -1,7 +1,10 @@
+'use client'
+
 import Link from 'next/link'
-import { Search, Phone, MessageCircle, Mail, FileText, Truck, RefreshCw, CreditCard, Shield, Users, Clock } from 'lucide-react'
+import { Search, Phone, MessageCircle, Mail, FileText, Truck, RefreshCw, CreditCard, Shield, Users, Clock, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useState } from 'react'
 
 const helpCategories = [
   {
@@ -110,6 +113,39 @@ const quickActions = [
 ]
 
 export default function HelpPage() {
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [showContactForm, setShowContactForm] = useState(false)
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    topic: '',
+    message: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    
+    // Simulate form submission
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    setSubmitted(true)
+    setIsSubmitting(false)
+    setShowContactForm(false)
+  }
+
+  const contactTopics = [
+    { value: 'order-tracking', label: 'Order Tracking' },
+    { value: 'returns', label: 'Returns & Exchanges' },
+    { value: 'shipping', label: 'Shipping Information' },
+    { value: 'payment', label: 'Payment & Billing' },
+    { value: 'product-info', label: 'Product Information' },
+    { value: 'account', label: 'Account Issues' },
+    { value: 'technical', label: 'Technical Support' },
+    { value: 'other', label: 'Other' }
+  ]
   return (
     <div className="bg-white">
       {/* Header */}
@@ -139,6 +175,205 @@ export default function HelpPage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-8">
+        {/* Contact Options */}
+        <section className="mb-12">
+          <h2 className="mb-6 text-2xl font-bold text-gray-900">Get Help Now</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Phone Support */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-[#06303E] rounded-lg flex items-center justify-center">
+                  <Phone className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Phone Support</h3>
+              </div>
+              <p className="text-gray-600 mb-4 text-sm">
+                Speak directly with our customer service team.
+              </p>
+              <div className="space-y-2">
+                <p className="text-[#06303E] font-semibold">1-800-TFM-SHOP</p>
+                <div className="flex items-center space-x-2 text-xs text-gray-600">
+                  <Clock className="h-3 w-3" />
+                  <span>Mon-Fri: 9AM-8PM EST</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Chat */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-[#06303E] rounded-lg flex items-center justify-center">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Live Chat</h3>
+              </div>
+              <p className="text-gray-600 mb-4 text-sm">
+                Chat with us in real-time for quick answers.
+              </p>
+              <Button className="w-full bg-[#06303E] hover:bg-[#06303E]/90">
+                Start Chat
+              </Button>
+            </div>
+
+            {/* Email Support */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-[#06303E] rounded-lg flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Email Support</h3>
+              </div>
+              <p className="text-gray-600 mb-4 text-sm">
+                Send us an email and we'll respond within 24 hours.
+              </p>
+              <Button 
+                onClick={() => setShowContactForm(true)}
+                className="w-full bg-[#06303E] hover:bg-[#06303E]/90"
+              >
+                Send Message
+              </Button>
+            </div>
+
+            {/* Order Tracking */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-[#06303E] rounded-lg flex items-center justify-center">
+                  <Truck className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Track Order</h3>
+              </div>
+              <p className="text-gray-600 mb-4 text-sm">
+                Get real-time updates on your order status.
+              </p>
+              <Link href="/track">
+                <Button className="w-full bg-[#06303E] hover:bg-[#06303E]/90">
+                  Track Package
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Contact Form Modal */}
+        {showContactForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              {submitted ? (
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Mail className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Message Sent!</h3>
+                  <p className="text-gray-600 mb-4">
+                    Thank you for contacting us. We'll get back to you within 24 hours.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setSubmitted(false)
+                      setShowContactForm(false)
+                      setContactForm({ name: '', email: '', topic: '', message: '' })
+                    }}
+                    className="w-full bg-[#06303E] hover:bg-[#06303E]/90"
+                  >
+                    Close
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">Contact Support</h3>
+                    <button
+                      onClick={() => setShowContactForm(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleContactSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name *
+                      </label>
+                      <Input
+                        type="text"
+                        value={contactForm.name}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, name: e.target.value }))}
+                        required
+                        placeholder="Your full name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email *
+                      </label>
+                      <Input
+                        type="email"
+                        value={contactForm.email}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+                        required
+                        placeholder="your.email@example.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Topic *
+                      </label>
+                      <select
+                        value={contactForm.topic}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, topic: e.target.value }))}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#06303E] focus:border-transparent"
+                      >
+                        <option value="">Select a topic</option>
+                        {contactTopics.map((topic) => (
+                          <option key={topic.value} value={topic.value}>
+                            {topic.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Message *
+                      </label>
+                      <textarea
+                        value={contactForm.message}
+                        onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                        required
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#06303E] focus:border-transparent resize-none"
+                        placeholder="Please describe your question or concern..."
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowContactForm(false)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex-1 bg-[#06303E] hover:bg-[#06303E]/90"
+                      >
+                        {isSubmitting ? 'Sending...' : 'Send Message'}
+                      </Button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <section className="mb-12">
           <h2 className="mb-6 text-2xl font-bold text-gray-900">Quick Actions</h2>
@@ -295,9 +530,4 @@ export default function HelpPage() {
       </div>
     </div>
   )
-}
-
-export const metadata = {
-  title: 'Help & Customer Service - TFMshop',
-  description: 'Get help with orders, returns, account issues, and more. 24/7 customer support available.',
 }

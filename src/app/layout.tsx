@@ -6,6 +6,8 @@ import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { CartProvider } from '@/contexts/CartContext'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { OrderProvider } from '@/contexts/OrderContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { CartSidebar } from '@/components/cart/CartSidebar'
 import LiveChatSupport from '@/components/LiveChatSupport'
 import UserActivityFeed from '@/components/UserActivityFeed'
@@ -77,18 +79,22 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <AuthProvider>
-          <CartProvider>
-            <Providers>
-              <Header />
-              <main className="flex-1">
-                {children}
-              </main>
-              <Footer />
-              <CartSidebar />
-              <LiveChatSupport />
-              <UserActivityFeed />
-            </Providers>
-          </CartProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <OrderProvider>
+                <Providers>
+                  <Header />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <Footer />
+                  <CartSidebar />
+                  <LiveChatSupport />
+                  <UserActivityFeed />
+                </Providers>
+              </OrderProvider>
+            </CartProvider>
+          </NotificationProvider>
         </AuthProvider>
       </body>
     </html>

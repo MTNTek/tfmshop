@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useCart } from '@/contexts/CartContext'
 import { UserMenu } from '@/components/auth/UserMenu'
+import NotificationDropdown from '@/components/notifications/NotificationDropdown'
 
 export function Header() {
   const { state, toggleCart } = useCart();
@@ -72,6 +73,11 @@ export function Header() {
               {/* Account */}
               <div className="hidden lg:flex">
                 <UserMenu />
+              </div>
+
+              {/* Notifications */}
+              <div className="hidden lg:flex">
+                <NotificationDropdown />
               </div>
 
               {/* Orders */}

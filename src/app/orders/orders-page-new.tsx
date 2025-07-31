@@ -26,10 +26,10 @@ const statusLabels = {
 
 export default function OrdersPage() {
   const { orders, isLoading } = useOrder()
-  const { state: authState } = useAuth()
+  const { user } = useAuth()
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
 
-  if (!authState.isAuthenticated) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
