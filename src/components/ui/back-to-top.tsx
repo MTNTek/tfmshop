@@ -7,7 +7,7 @@ export function BackToTop() {
 
   return (
     <div 
-      className="bg-amazon-navy-light py-4 text-center text-sm hover:bg-amazon-navy-dark cursor-pointer"
+      className="bg-tfm-navy-light py-4 text-center text-sm hover:bg-tfm-navy-dark cursor-pointer"
       onClick={scrollToTop}
     >
       Back to top

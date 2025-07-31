@@ -113,7 +113,7 @@ export default function HelpPage() {
   return (
     <div className="bg-white">
       {/* Header */}
-      <section className="bg-amazon-navy text-white">
+      <section className="bg-tfm-navy text-white">
         <div className="mx-auto max-w-7xl px-4 py-12">
           <div className="text-center">
             <h1 className="mb-4 text-4xl font-bold">Help & Customer Service</h1>

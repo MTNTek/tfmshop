@@ -3,7 +3,7 @@ import { BackToTop } from '@/components/ui/back-to-top'
 
 export function Footer() {
   return (
-    <footer className="bg-amazon-navy text-white">
+    <footer className="bg-tfm-navy text-white">
       {/* Back to top */}
       <BackToTop />
 
@@ -65,7 +65,7 @@ export function Footer() {
       </div>
 
       {/* Bottom section */}
-      <div className="border-t border-amazon-navy-light">
+      <div className="border-t border-tfm-navy-light">
         <div className="mx-auto max-w-7xl px-4 py-6">
           <div className="flex flex-col items-center justify-between space-y-4 md:flex-row md:space-y-0">
             {/* Logo */}
@@ -76,13 +76,13 @@ export function Footer() {
               
               {/* Language and country selector */}
               <div className="flex items-center space-x-4 text-sm">
-                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-amazon-navy-light">
+                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-tfm-navy-light">
                   <span>🌐 English</span>
                 </button>
-                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-amazon-navy-light">
+                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-tfm-navy-light">
                   <span>💵 USD - U.S. Dollar</span>
                 </button>
-                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-amazon-navy-light">
+                <button className="flex items-center space-x-1 rounded border border-gray-400 px-2 py-1 hover:bg-tfm-navy-light">
                   <span>🇺🇸</span>
                   <span>United States</span>
                 </button>

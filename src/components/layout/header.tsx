@@ -5,19 +5,19 @@ import { Input } from '@/components/ui/input'
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 bg-amazon-navy text-white">
+    <header className="sticky top-0 z-50 bg-tfm-navy text-white">
       {/* Top banner */}
-      <div className="bg-amazon-navy-dark px-4 py-2 text-center text-sm">
+      <div className="bg-tfm-navy-dark px-4 py-2 text-center text-sm">
         <p>Free shipping on orders over $35 shipped by TFMshop</p>
       </div>
 
       {/* Main header */}
-      <div className="border-b border-amazon-navy-light">
+      <div className="border-b border-tfm-navy-light">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex h-14 items-center justify-between">
             {/* Logo */}
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="icon" className="text-white hover:bg-amazon-navy-light lg:hidden">
+              <Button variant="ghost" size="icon" className="text-white hover:bg-tfm-navy-light lg:hidden">
                 <Menu className="h-5 w-5" />
               </Button>
               <Link href="/" className="flex items-center space-x-2">
@@ -104,7 +104,7 @@ export function Header() {
               </Link>
 
               {/* Mobile account */}
-              <Button variant="ghost" size="icon" className="text-white hover:bg-amazon-navy-light lg:hidden">
+              <Button variant="ghost" size="icon" className="text-white hover:bg-tfm-navy-light lg:hidden">
                 <User className="h-5 w-5" />
               </Button>
             </div>
@@ -113,10 +113,10 @@ export function Header() {
       </div>
 
       {/* Navigation menu */}
-      <div className="bg-amazon-navy-light">
+      <div className="bg-tfm-navy-light">
         <div className="mx-auto max-w-7xl px-4">
           <nav className="flex h-10 items-center space-x-6 text-sm">
-            <Button variant="ghost" className="text-white hover:bg-amazon-navy-dark h-full px-3">
+            <Button variant="ghost" className="text-white hover:bg-tfm-navy-dark h-full px-3">
               <Menu className="mr-2 h-4 w-4" />
               All
             </Button>
