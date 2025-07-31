@@ -4,6 +4,9 @@ import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { CartProvider } from '@/contexts/CartContext'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { CartSidebar } from '@/components/cart/CartSidebar'
 import LiveChatSupport from '@/components/LiveChatSupport'
 import UserActivityFeed from '@/components/UserActivityFeed'
 
@@ -73,15 +76,20 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
-        <Providers>
-          <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-          <LiveChatSupport />
-          <UserActivityFeed />
-        </Providers>
+        <AuthProvider>
+          <CartProvider>
+            <Providers>
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+              <CartSidebar />
+              <LiveChatSupport />
+              <UserActivityFeed />
+            </Providers>
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   )

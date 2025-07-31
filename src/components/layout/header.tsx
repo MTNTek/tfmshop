@@ -1,9 +1,14 @@
+'use client';
+
 import Link from 'next/link'
 import { Search, ShoppingCart, Menu, User, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useCart } from '@/contexts/CartContext'
+import { UserMenu } from '@/components/auth/UserMenu'
 
 export function Header() {
+  const { state, toggleCart } = useCart();
   return (
     <header className="sticky top-0 z-50 bg-tfm-navy text-white">
       {/* Top banner */}
@@ -66,18 +71,7 @@ export function Header() {
 
               {/* Account */}
               <div className="hidden lg:flex">
-                {/* TODO: Replace with actual authentication state */}
-                {false ? (
-                  <Link href="/account" className="flex flex-col text-xs hover:text-gray-300">
-                    <span>Hello, John</span>
-                    <span className="font-semibold">Account & Lists</span>
-                  </Link>
-                ) : (
-                  <Link href="/login" className="flex flex-col text-xs hover:text-gray-300">
-                    <span>Hello, Sign in</span>
-                    <span className="font-semibold">Account & Lists</span>
-                  </Link>
-                )}
+                <UserMenu />
               </div>
 
               {/* Orders */}
@@ -93,15 +87,20 @@ export function Header() {
               </Link>
 
               {/* Cart */}
-              <Link href="/cart" className="flex items-center space-x-1 hover:text-gray-300">
+              <button 
+                onClick={toggleCart}
+                className="flex items-center space-x-1 hover:text-gray-300 focus:outline-none"
+              >
                 <div className="relative">
                   <ShoppingCart className="h-6 w-6" />
-                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-amazon-orange text-xs font-bold">
-                    0
-                  </span>
+                  {state.itemCount > 0 && (
+                    <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-xs font-bold">
+                      {state.itemCount > 99 ? '99+' : state.itemCount}
+                    </span>
+                  )}
                 </div>
                 <span className="hidden font-semibold lg:block">Cart</span>
-              </Link>
+              </button>
 
               {/* Mobile account */}
               <Button variant="ghost" size="icon" className="text-white hover:bg-tfm-navy-light lg:hidden">
