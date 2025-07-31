@@ -1,8 +1,25 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Clock, Tag, Star, ShoppingCart } from 'lucide-react'
+import { Clock, Tag, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
+
+// Deal interface
+interface Deal {
+  id: string;
+  name: string;
+  brand: string;
+  originalPrice: number;
+  dealPrice: number;
+  discount: number;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  isPrime: boolean;
+  timeLeft?: string;
+  claimed?: number;
+  totalAvailable?: number;
+}
 
 // Mock deals data - in real app this would come from database
 const dealCategories = [
@@ -103,7 +120,7 @@ const renderStars = (rating: number) => {
   return '⭐'.repeat(Math.floor(rating))
 }
 
-const DealCard = ({ deal, showTimer = false }: { deal: any, showTimer?: boolean }) => (
+const DealCard = ({ deal, showTimer = false }: { deal: Deal, showTimer?: boolean }) => (
   <div className="group relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
     {/* Discount badge */}
     <div className="absolute left-2 top-2 z-10 rounded bg-red-600 px-2 py-1 text-xs font-bold text-white">

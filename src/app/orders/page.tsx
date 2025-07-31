@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Eye, RotateCcw, MessageSquare } from 'lucide-react'
+import { Eye, RotateCcw, MessageSquare, Package, Truck, CheckCircle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
 
@@ -93,6 +93,21 @@ const getStatusColor = (status: string) => {
   }
 }
 
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'Delivered':
+      return CheckCircle
+    case 'Shipped':
+      return Truck
+    case 'Processing':
+      return Package
+    case 'Cancelled':
+      return Clock
+    default:
+      return Package
+  }
+}
+
 export default function OrdersPage() {
   return (
     <div className="bg-white">
@@ -159,9 +174,15 @@ export default function OrdersPage() {
               <div className="px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      {(() => {
+                        const StatusIcon = getStatusIcon(order.status);
+                        return <StatusIcon className="h-4 w-4 text-current" />;
+                      })()}
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
                     {order.status === 'Delivered' && order.deliveryDate && (
                       <span className="text-sm text-gray-600">
                         Delivered on {new Date(order.deliveryDate).toLocaleDateString()}

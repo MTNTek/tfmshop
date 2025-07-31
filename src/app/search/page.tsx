@@ -1,13 +1,31 @@
-import { Suspense } from 'react'
-import { ProductCard } from '@/components/ui/product-card'
+import { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { 
+  Search, 
+  Filter, 
+  Star, 
+  Heart, 
+  ShoppingCart, 
+  Grid, 
+  List, 
+  SlidersHorizontal,
+  MapPin,
+  Truck,
+  ArrowUpDown,
+  X,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
+import { formatPrice } from '@/lib/utils';
 
-// Mock search results - in real app this would come from database search
-const searchResults = [
+// Mock product data with detailed attributes
+const products = [
   {
     id: '1',
-    name: 'iPhone 15 Pro',
+    name: 'iPhone 15 Pro Max',
     brand: 'Apple',
-    price: 999.00,
+    price: 1199.99,
     comparePrice: 1099.00,
     image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400',
     rating: 4.5,
@@ -47,6 +65,32 @@ interface SearchPageProps {
 }
 
 function SearchResults({ query, category }: { query?: string; category?: string }) {
+  // Mock search results - in a real app, this would come from an API
+  const searchResults = [
+    {
+      id: '1',
+      name: 'iPhone 15 Pro',
+      brand: 'Apple',
+      price: 999,
+      originalPrice: 1099,
+      image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=300',
+      rating: 4.8,
+      reviews: 1247,
+      category: 'Electronics',
+    },
+    {
+      id: '2',
+      name: 'MacBook Pro',
+      brand: 'Apple',
+      price: 1999,
+      originalPrice: 2299,
+      image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=300',
+      rating: 4.9,
+      reviews: 892,
+      category: 'Electronics',
+    },
+  ]
+
   // Filter results based on search query and category
   let filteredResults = searchResults
 
@@ -100,19 +144,27 @@ function SearchResults({ query, category }: { query?: string; category?: string 
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredResults.map((product) => (
-            <ProductCard 
-              key={product.id} 
-              id={product.id}
-              name={product.name}
-              slug={product.href.split('/').pop() || ''}
-              price={product.price.toString()}
-              comparePrice={product.comparePrice?.toString()}
-              image={product.image}
-              rating={product.rating}
-              reviewCount={product.reviewCount}
-              brand={product.brand}
-              isPrime={product.isPrime}
-            />
+            <div key={product.id} className="bg-white rounded-lg shadow p-4">
+              <img 
+                src={product.image} 
+                alt={product.name}
+                className="w-full h-48 object-cover mb-4 rounded"
+              />
+              <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+              <p className="text-gray-600 mb-2">{product.brand}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-xl">${product.price}</span>
+                  {product.originalPrice > product.price && (
+                    <span className="text-gray-500 line-through">${product.originalPrice}</span>
+                  )}
+                </div>
+                <div className="flex items-center">
+                  <span className="text-yellow-500">★</span>
+                  <span className="ml-1 text-sm">{product.rating} ({product.reviews})</span>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}

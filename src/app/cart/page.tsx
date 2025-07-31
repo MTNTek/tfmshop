@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Image from 'next/image'
 import Link from 'next/link'
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react'
@@ -5,34 +8,44 @@ import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
 
 // Mock cart data - in real app this would come from state management
-const cartItems = [
+const initialCartItems = [
   {
     id: '1',
     name: 'iPhone 15 Pro',
     brand: 'Apple',
     price: 999.00,
+    originalPrice: 1099.00,
     quantity: 1,
     image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=200',
     inStock: true,
-    isPrime: true
+    isPrime: true,
+    seller: 'Apple Store',
+    rating: 4.8,
+    reviews: 2456
   },
   {
     id: '2',
     name: 'Nike Air Max 270',
     brand: 'Nike',
     price: 150.00,
+    originalPrice: null,
     quantity: 2,
     image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=200',
     inStock: true,
-    isPrime: true
+    isPrime: true,
+    seller: 'Nike Official',
+    rating: 4.6,
+    reviews: 892
   }
 ]
 
 export default function CartPage() {
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-  const shipping = 0 // Free shipping
-  const tax = subtotal * 0.08 // 8% tax
-  const total = subtotal + shipping + tax
+  const [cartItems] = useState(initialCartItems);
+
+  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const shipping = subtotal > 35 ? 0 : 5.99;
+  const tax = subtotal * 0.08; // 8% tax
+  const total = subtotal + shipping + tax;
 
   if (cartItems.length === 0) {
     return (
@@ -191,9 +204,4 @@ export default function CartPage() {
       </div>
     </div>
   )
-}
-
-export const metadata = {
-  title: 'Shopping Cart - TFMshop',
-  description: 'Review and manage items in your shopping cart',
 }

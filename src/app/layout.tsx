@@ -4,6 +4,8 @@ import { Inter } from 'next/font/google'
 import { Providers } from './providers'
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import LiveChatSupport from '@/components/LiveChatSupport'
+import UserActivityFeed from '@/components/UserActivityFeed'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -77,6 +79,8 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          <LiveChatSupport />
+          <UserActivityFeed />
         </Providers>
       </body>
     </html>

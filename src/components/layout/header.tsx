@@ -65,10 +65,20 @@ export function Header() {
               </div>
 
               {/* Account */}
-              <Link href="/account" className="hidden flex-col text-xs hover:text-gray-300 lg:flex">
-                <span>Hello, Sign in</span>
-                <span className="font-semibold">Account & Lists</span>
-              </Link>
+              <div className="hidden lg:flex">
+                {/* TODO: Replace with actual authentication state */}
+                {false ? (
+                  <Link href="/account" className="flex flex-col text-xs hover:text-gray-300">
+                    <span>Hello, John</span>
+                    <span className="font-semibold">Account & Lists</span>
+                  </Link>
+                ) : (
+                  <Link href="/login" className="flex flex-col text-xs hover:text-gray-300">
+                    <span>Hello, Sign in</span>
+                    <span className="font-semibold">Account & Lists</span>
+                  </Link>
+                )}
+              </div>
 
               {/* Orders */}
               <Link href="/orders" className="hidden flex-col text-xs hover:text-gray-300 lg:flex">
@@ -125,10 +135,16 @@ export function Header() {
             <Link href="/deals" className="hover:text-gray-300">
               Today&apos;s Deals
             </Link>
-            <Link href="/gift-cards" className="hover:text-gray-300">
-              Gift Cards
+            <Link href="/saved" className="hover:text-gray-300">
+              Saved Items
             </Link>
-            <Link href="/customer-service" className="hover:text-gray-300">
+            <Link href="/compare" className="hover:text-gray-300">
+              Compare
+            </Link>
+            <Link href="/reviews" className="hover:text-gray-300">
+              Reviews
+            </Link>
+            <Link href="/help" className="hover:text-gray-300">
               Customer Service
             </Link>
           </nav>

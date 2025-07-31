@@ -124,6 +124,7 @@ src/
 - Badge system for featured products
 
 ### Navigation
+
 - Horizontal category navigation
 - Mobile-responsive menu
 - Smooth hover transitions
